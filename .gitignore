@@ -1,3 +1,4 @@
 output.json
 node_modules/
 output2.json
+*.js

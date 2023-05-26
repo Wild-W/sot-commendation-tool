@@ -29,8 +29,7 @@ function parseDescription(desc) {
     if (timeLimited) {
         desc = desc.replace("Time-limited", "");
     }
-    desc = desc.replace(gradeRegex, "");
-    const textSegments = desc.split("  ");
+    const textSegments = desc.split(" Grade");
     return [textSegments[0], timeLimited];
 }
 function getHyperLink(el) {
@@ -81,19 +80,21 @@ function getImageLink(webPage) {
 }
 function processImgHTML(htmlString) {
     var _a;
-    const { document } = new jsdom_1.JSDOM(htmlString).window;
-    const images = document.getElementsByTagName('img');
-    for (const img of images) {
-        if (img.hasAttribute('data-src')) {
-            img.removeAttribute('src');
-            img.removeAttribute('style');
-            img.setAttribute('src', (_a = img.getAttribute('data-src')) !== null && _a !== void 0 ? _a : "");
-            img.removeAttribute('data-src');
+    return __awaiter(this, void 0, void 0, function* () {
+        const { document } = new jsdom_1.JSDOM(htmlString).window;
+        const aLinks = document.getElementsByTagName("a");
+        for (const a of aLinks) {
+            const href = a.getAttribute("href");
+            if (href == null)
+                continue;
+            const newHref = fullLink(href);
+            a.setAttribute("href", newHref);
         }
-    }
-    return document.body.innerHTML
-        .replace(/<a href="\//g, "<a href=\"https://seaofthieves.wiki.gg/")
-        .replace(/\/revision\/latest(\/scale\-to\-width\-down\/24){0,1}\?cb=\d+/g, "");
+        for (const img of document.getElementsByTagName("img")) {
+            img.setAttribute("src", fullLink((_a = img.getAttribute("src")) !== null && _a !== void 0 ? _a : ""));
+        }
+        return document.body.innerHTML;
+    });
 }
 const notRewards = [
     "Athena%27s_Fortune_Shop",
@@ -111,7 +112,7 @@ let commendations = [];
     const tableArr = $("div.mw-parser-output").find("table").toArray();
     for (let index = 0; index < tableArr.length; index++) {
         const trArr = $(tableArr[index]).find("tr").toArray();
-        for (let idx = 1 /* First row is useless */; idx < trArr.length; idx++) {
+        for (let idx = 2 /* First & second row are useless */; idx < trArr.length; idx++) {
             const row = $(trArr[idx]);
             const thCells = row.find("th");
             const tdCells = row.find("td");
@@ -121,14 +122,14 @@ let commendations = [];
             const descriptionInfo = cleanText(requirementCell.text());
             // const id: string = (nameCell.attr() as { id: string }).id;
             const name = cleanText(nameCell.text());
-            const imageUrl = cleanImageUrl(getHyperLink($(thCells.children("div.thumb-frame.pseudo-before").children("a.image").get(0))));
+            const imageUrl = yield getImageLink(fullLink(cleanImageUrl(getHyperLink($(thCells.children("div.thumb-frame.pseudo-before").children("a.image").get(0))))));
             const [description, timeLimited] = parseDescription(cleanText(descriptionInfo));
-            const gradeRequirements = $($(requirementCell.children("div.mw-collapsible mw-made-collapsible")
-                .children("div.mw-collapsible-content").children("ul").get(0)).children("li"))
+            const gradeRequirements = $($(requirementCell.children("div").first()
+                .children("div").first().children("ul").get(0)).children("li"))
                 .toArray().map(el => $(el).text().replace(gradeRegex, ""));
             let doubloonStr = rewardsCell.find("span.coin").text();
             let rewards = {
-                html: processImgHTML((_a = rewardsCell.html()) !== null && _a !== void 0 ? _a : ""),
+                html: yield processImgHTML((_a = rewardsCell.html()) !== null && _a !== void 0 ? _a : ""),
                 doubloons: Number(doubloonStr.substring(0, doubloonStr.length - 1)) || 0,
                 items: []
             };
@@ -154,7 +155,7 @@ let commendations = [];
             commendations.push({
                 description,
                 gradeRequirements,
-                imageUrl: fullLink(imageUrl),
+                imageUrl,
                 name,
                 rewards,
                 timeLimited,
